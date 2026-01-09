@@ -37,6 +37,9 @@ func main() {
 				"update_widget": "true",
 			},
 			Topic: "casal",
+			Android: &messaging.AndroidConfig{
+				Priority: "high",
+			},
 		}
 
 		response, err := msgClient.Send(ctx, message)
