@@ -11,6 +11,7 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
 
@@ -51,16 +52,29 @@ func iniciarAgendadorMeiaNoite() {
 var msgClient *messaging.Client
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Arquivo .env não encontrado, lendo variáveis de ambiente")
+	}
 	ctx := context.Background()
 
-	// Inicializa o Firebase Admin
-	opt := option.WithCredentialsFile("serviceAccountKey.json")
+	// 1. Lê a string do JSON da variável de ambiente
+	serviceAccountJSON := os.Getenv("FIREBASE_SERVICE_ACCOUNT_KEY")
+	if serviceAccountJSON == "" {
+		log.Fatal("ERRO: Variável FIREBASE_SERVICE_ACCOUNT_KEY não configurada!")
+	}
+
+	// 2. Inicializa o Firebase usando os bytes do JSON
+	opt := option.WithCredentialsJSON([]byte(serviceAccountJSON))
 	app, err := firebase.NewApp(ctx, nil, opt)
 	if err != nil {
 		log.Fatalf("Erro ao iniciar Firebase: %v", err)
 	}
 
-	msgClient, _ = app.Messaging(ctx)
+	// Inicializa o cliente de mensagens
+	msgClient, err = app.Messaging(ctx)
+	if err != nil {
+		log.Fatalf("Erro ao obter cliente de mensagens: %v", err)
+	}
 
 	// 2. Inicia o agendador de virada de dia em background
 	go iniciarAgendadorMeiaNoite()
