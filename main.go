@@ -6,12 +6,47 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/api/option"
 )
+
+func iniciarAgendadorMeiaNoite() {
+	// 1. Forçar fuso horário de Brasília
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+
+	for {
+		agora := time.Now().In(loc)
+
+		// Calcula a próxima meia-noite no horário de Brasília
+		proximaMeiaNoite := time.Date(agora.Year(), agora.Month(), agora.Day()+1, 0, 1, 0, 0, loc)
+		tempoRestante := time.Until(proximaMeiaNoite)
+
+		log.Printf("Aguardando %v para a próxima virada de dia...", tempoRestante)
+		time.Sleep(tempoRestante)
+
+		// Dispara a atualização
+		message := &messaging.Message{
+			Data:    map[string]string{"update_widget": "true"},
+			Topic:   "casal",
+			Android: &messaging.AndroidConfig{Priority: "high"},
+		}
+
+		// Usamos Background context aqui
+		_, err := msgClient.Send(context.Background(), message)
+		if err != nil {
+			log.Printf("Erro no agendador: %v", err)
+		} else {
+			log.Println("Sinal de virada de dia enviado com sucesso!")
+		}
+
+		// Evita disparos múltiplos no mesmo segundo
+		time.Sleep(2 * time.Second)
+	}
+}
 
 var msgClient *messaging.Client
 
@@ -26,6 +61,9 @@ func main() {
 	}
 
 	msgClient, _ = app.Messaging(ctx)
+
+	// 2. Inicia o agendador de virada de dia em background
+	go iniciarAgendadorMeiaNoite()
 
 	r := gin.Default()
 
